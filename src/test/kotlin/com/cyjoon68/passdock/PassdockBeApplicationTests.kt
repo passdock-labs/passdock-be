@@ -14,4 +14,12 @@ class PassdockBeApplicationTests {
 		assertEquals("OPEN", alert.status)
 	}
 
+	@Test
+	fun createsMediumRiskAlertForRegionReset() {
+		val service = RiskService()
+		val alert = service.ingest(LoginEventRequest("user-a", "device-b", "US", "RESET", deviceChanged = false))
+
+		assertEquals("MEDIUM", alert.severity)
+	}
+
 }

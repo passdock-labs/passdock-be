@@ -37,9 +37,13 @@ class RiskService {
         RiskRule("rr-1", "new-device-repeat-failure", "HIGH", enabled = true),
         RiskRule("rr-2", "region-change-after-reset", "MEDIUM", enabled = true),
     )
+    private val evaluators = mapOf<String, (LoginEventRequest) -> Boolean>(
+        "new-device-repeat-failure" to { request -> request.result == "FAILURE" && request.deviceChanged },
+        "region-change-after-reset" to { request -> request.result == "RESET" && request.region != "KR" },
+    )
 
     fun ingest(request: LoginEventRequest): RiskAlert {
-        val severity = if (request.result == "FAILURE" && request.deviceChanged) "HIGH" else "LOW"
+        val severity = rules.firstOrNull { rule -> rule.enabled && evaluators[rule.name]?.invoke(request) == true }?.severity ?: "LOW"
         val alert = RiskAlert("ra-${alerts.size + 1}", severity, "passkey ${request.result.lowercase()} from ${request.region}", "OPEN", Instant.now())
         alerts += alert
         return alert
