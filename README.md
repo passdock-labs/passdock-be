@@ -1,8 +1,9 @@
 # passdock-be
 
-Kotlin Spring Boot MVC API for PassDock.
+Kotlin Spring Boot MVC API for PassDock authentication risk events and alerts.
 
 ## Stack
+
 - Kotlin
 - Spring Boot MVC
 - PostgreSQL schema + Flyway migration
@@ -11,5 +12,16 @@ Kotlin Spring Boot MVC API for PassDock.
 - Docker
 - GitHub Actions CI
 
-## Resume bullet
-- Passkey 로그인 이벤트를 위험 규칙 평가와 알림 상태 API로 분리하고 Kafka/Prometheus 기반 운영 확장 지점을 설계.
+## API Scope
+
+- Login event ingestion.
+- Risk rule listing.
+- Risk alert creation.
+- Alert status update.
+- Prometheus metrics endpoint.
+
+## Risk Evaluation
+
+- Enabled rules are evaluated through a rule-name strategy map.
+- Matching rules create alerts with the configured severity.
+- Tests cover changed-device failures and region reset alerts.
