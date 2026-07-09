@@ -44,7 +44,8 @@ class RiskController(private val service: RiskService) {
     fun rules(): List<RiskRule> = service.rules()
 
     @PatchMapping("/risk-alerts/{id}/status")
-    fun updateStatus(@PathVariable id: String, @RequestBody request: AlertStatusRequest): RiskAlert = service.updateStatus(id, request.status)
+    fun updateStatus(@PathVariable id: String, @RequestBody request: AlertStatusRequest): RiskAlert =
+        service.updateStatus(id, request.status, request.note)
 }
 
 @Service
@@ -75,9 +76,13 @@ class RiskService(
 
     fun rules(): List<RiskRule> = store.rules()
 
-    fun updateStatus(id: String, status: String): RiskAlert {
+    fun updateStatus(id: String, status: String, note: String?) : RiskAlert {
         require(status in setOf("OPEN", "ACKED", "RESOLVED")) { "unsupported alert status: $status" }
-        return store.updateAlertStatus(id, status)
+        val updated = store.updateAlertStatus(id, status)
+        if (!note.isNullOrBlank()) {
+            store.saveNote(id, note.trim())
+        }
+        return updated
     }
 
     private fun alertReason(request: LoginEventRequest, rule: RiskRule): String =
@@ -95,6 +100,7 @@ interface RiskStore {
     fun rules(): List<RiskRule>
     fun saveAlert(loginEventId: String, rule: RiskRule, reason: String): RiskAlert
     fun updateAlertStatus(id: String, status: String): RiskAlert
+    fun saveNote(alertId: String, note: String)
 }
 
 class InMemoryRiskStore : RiskStore {
@@ -146,6 +152,8 @@ class InMemoryRiskStore : RiskStore {
         alertRecords[index] = updated
         return updated
     }
+
+    override fun saveNote(alertId: String, note: String) = Unit
 }
 
 @Repository
@@ -239,6 +247,20 @@ class JdbcRiskStore(private val jdbcClient: JdbcClient) : RiskStore {
         return alerts().first { it.id == id }
     }
 
+    override fun saveNote(alertId: String, note: String) {
+        jdbcClient.sql(
+            """
+            insert into incident_note (id, alert_id, note, author, created_at)
+            values (:id, :alertId, :note, 'operator', :createdAt)
+            """.trimIndent(),
+        )
+            .param("id", UUID.randomUUID())
+            .param("alertId", UUID.fromString(alertId))
+            .param("note", note)
+            .param("createdAt", Timestamp.from(Instant.now()))
+            .update()
+    }
+
     private fun mapEvent(rs: ResultSet, rowNumber: Int): LoginEventRecord =
         LoginEventRecord(
             id = rs.getObject("id", UUID::class.java).toString(),
@@ -330,4 +352,4 @@ data class RiskAlert(
     val createdAt: Instant,
 )
 data class RiskRule(val id: String, val name: String, val severity: String, val enabled: Boolean)
-data class AlertStatusRequest(val status: String)
+data class AlertStatusRequest(val status: String, val note: String? = null)
