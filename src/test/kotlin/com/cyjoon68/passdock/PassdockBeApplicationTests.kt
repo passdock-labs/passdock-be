@@ -22,4 +22,15 @@ class PassdockBeApplicationTests {
 		assertEquals("MEDIUM", alert.severity)
 	}
 
+	@Test
+	fun updatesRiskAlertStatusWithSupportedLifecycleState() {
+		val service = RiskService()
+		val alert = service.ingest(LoginEventRequest("user-a", "device-b", "KR", "FAILURE", deviceChanged = true))
+		val acked = service.updateStatus(alert.id, "ACKED")
+		val resolved = service.updateStatus(alert.id, "RESOLVED")
+
+		assertEquals("ACKED", acked.status)
+		assertEquals("RESOLVED", resolved.status)
+	}
+
 }
